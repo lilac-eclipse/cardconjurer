@@ -125,12 +125,9 @@ async function processZipFile(zipFile) {
     }
 }
 
-function downloadPDF() {
-    var pageOrientation = 'portrait';
-    if (page[0] > page[1]) {
-        pageOrientation = 'landscape';
-    }
-    var doc = new jsPDF({
+async function downloadPDF() {
+    const pageOrientation = page[0] > page[1] ? 'landscape' : 'portrait';
+    const doc = new jsPDF({
         orientation: pageOrientation,
         unit: 'in',
         format: [page[0], page[1]]
@@ -139,28 +136,33 @@ function downloadPDF() {
     const cardsPerPage = 9; // 3x3 grid
     const totalPages = Math.ceil(imageList.length / cardsPerPage);
 
+    // Create a temporary canvas for image processing
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+
     for (let pageNum = 0; pageNum < totalPages; pageNum++) {
         if (pageNum > 0) {
             doc.addPage();
         }
-        drawPDFPage(doc, pageNum * cardsPerPage);
+        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx);
     }
 
     doc.save('print.pdf');
 }
 
-function drawPDFPage(doc, startIndex) {
-    //Calc actual card size
+async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx) {
+    const targetDPI = 300;
+    const scaleFactor = targetDPI / ppi;
+
+    // Calculate card and page dimensions
     const cw = cardWidth + 2 * cardPaddingX + cardMarginX;
     const ch = cardHeight + 2 * cardPaddingY + cardMarginY;
-    //Calc number of cards that fit on the sheet
     const cardsX = Math.floor(page[0] / (cw / ppi));
     const cardsY = Math.floor(page[1] / (ch / ppi));
-    //Calc page margins
     const pageMarginX = Math.floor((page[0] * ppi - cardsX * cw) / 2);
     const pageMarginY = Math.floor((page[1] * ppi - cardsY * ch) / 2);
 
-    //Draw cutting guides that cover the page
+    // Draw cutting guides
     if (useCuttingAids) {
         for (var i = 0; i < cardsX; i++) {
             var x = pageMarginX + i * cw + Math.floor(cardMarginX / 2) + cardPaddingX - aidOffset;
@@ -184,12 +186,23 @@ function drawPDFPage(doc, startIndex) {
                 const w = cardWidth;
                 const h = cardHeight;
 
+                // Set temporary canvas size
+                tempCanvas.width = Math.round(w * scaleFactor);
+                tempCanvas.height = Math.round(h * scaleFactor);
+
+                // Draw and scale the image
                 if (imgIncludesBleedEdge) {
-                    doc.addImage(img, "PNG", (x - cardPaddingX) / ppi, (y - cardPaddingY) / ppi, (w + 2 * cardPaddingX) / ppi, (h + 2 * cardPaddingY) / ppi);
+                    tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
                 } else {
-                    doc.addImage(defaultPadding, "PNG", (x - cardPaddingX) / ppi, (y - cardPaddingY) / ppi, (w + 2 * cardPaddingX) / ppi, (h + 2 * cardPaddingY) / ppi);
-                    doc.addImage(img, "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
+                    tempCtx.fillStyle = bleedEdgeColor;
+                    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    tempCtx.drawImage(img, cardPaddingX * scaleFactor, cardPaddingY * scaleFactor, 
+                                      w * scaleFactor, h * scaleFactor);
                 }
+
+                // Add the processed image to the PDF
+                doc.addImage(tempCanvas, "JPEG", x / ppi, y / ppi, w / ppi, h / ppi, 
+                             undefined, 'MEDIUM', 0);
 
                 if (useCuttingAids) {
                     doc.addImage(cuttingGuides, "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
@@ -200,6 +213,7 @@ function drawPDFPage(doc, startIndex) {
         }
     }
 }
+
 //Manages page
 function setPageSize(size = [8.5, 11]) {
     page[0] = parseFloat(size[0]);

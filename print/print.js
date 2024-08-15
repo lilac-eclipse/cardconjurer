@@ -106,6 +106,25 @@ function downloadCanvas() {
     download.remove();
 }
 
+async function handleFileUpload(files) {
+    for (let file of files) {
+        if (file.type === 'application/x-zip-compressed') {
+            await processZipFile(file);
+        } else {
+            uploadCard(URL.createObjectURL(file), file.name);
+        }
+    }
+}
+
+async function processZipFile(zipFile) {
+    const zip = await JSZip.loadAsync(zipFile);
+    for (let filename in zip.files) {
+        if (zip.files[filename].dir) continue;
+        const blob = await zip.files[filename].async('blob');
+        uploadCard(URL.createObjectURL(blob), filename);
+    }
+}
+
 function downloadPDF() {
     var pageOrientation = 'portrait';
     if (page[0] > page[1]) {
@@ -116,15 +135,23 @@ function downloadPDF() {
         unit: 'in',
         format: [page[0], page[1]]
     });
-    //create a single black pixel for default padding
-    var defaultPadding = document.createElement("canvas");
-    defaultPadding.width = 1;
-    defaultPadding.height = 1;
-    var defaultPaddingContext = defaultPadding.getContext("2d");
-    defaultPaddingContext.fillStyle = bleedEdgeColor;
-    defaultPaddingContext.fillRect(0, 0, 1, 1);
+
+    const cardsPerPage = 9; // 3x3 grid
+    const totalPages = Math.ceil(imageList.length / cardsPerPage);
+
+    for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+        if (pageNum > 0) {
+            doc.addPage();
+        }
+        drawPDFPage(doc, pageNum * cardsPerPage);
+    }
+
+    doc.save('print.pdf');
+}
+
+function drawPDFPage(doc, startIndex) {
     //Calc actual card size
-    const cw =  cardWidth + 2 * cardPaddingX + cardMarginX;
+    const cw = cardWidth + 2 * cardPaddingX + cardMarginX;
     const ch = cardHeight + 2 * cardPaddingY + cardMarginY;
     //Calc number of cards that fit on the sheet
     const cardsX = Math.floor(page[0] / (cw / ppi));
@@ -132,8 +159,8 @@ function downloadPDF() {
     //Calc page margins
     const pageMarginX = Math.floor((page[0] * ppi - cardsX * cw) / 2);
     const pageMarginY = Math.floor((page[1] * ppi - cardsY * ch) / 2);
+
     //Draw cutting guides that cover the page
-    var count = 0;
     if (useCuttingAids) {
         for (var i = 0; i < cardsX; i++) {
             var x = pageMarginX + i * cw + Math.floor(cardMarginX / 2) + cardPaddingX - aidOffset;
@@ -146,32 +173,32 @@ function downloadPDF() {
             doc.addImage(blackPixel, "PNG", 0, (y + cardHeight) / ppi, page[0], aidWidth / ppi);
         }
     }
-    //Iterate through every viable space and draw the card there
-    count = 0;
-    for (var i = imageList.length - 1; i >= 0 && count < cardsX * cardsY; i--) {
-        if (imageList[i].width > 1) {
+
+    // Draw cards
+    for (let i = 0; i < 9 && startIndex + i < imageList.length; i++) {
+        const img = imageList[startIndex + i];
+        if (img.width > 1) {
             try {
-                //Calc upper-left corner of card *image* (accounts for bleed edge and margins)
-                var x = pageMarginX + (count % cardsX)                      * (cw) + Math.floor(cardMarginX / 2) + cardPaddingX;
-                var y = pageMarginY + (Math.floor(count / cardsX) % cardsY) * (ch) + Math.floor(cardMarginY / 2) + cardPaddingY;
-                var w = cardWidth;
-                var h = cardHeight;
+                const x = pageMarginX + (i % 3) * cw + Math.floor(cardMarginX / 2) + cardPaddingX;
+                const y = pageMarginY + Math.floor(i / 3) * ch + Math.floor(cardMarginY / 2) + cardPaddingY;
+                const w = cardWidth;
+                const h = cardHeight;
+
                 if (imgIncludesBleedEdge) {
-                    doc.addImage(imageList[i], "PNG", (x - cardPaddingX) / ppi, (y - cardPaddingY) / ppi, (w + 2 * cardPaddingX) / ppi, (h + 2 * cardPaddingY) / ppi);
+                    doc.addImage(img, "PNG", (x - cardPaddingX) / ppi, (y - cardPaddingY) / ppi, (w + 2 * cardPaddingX) / ppi, (h + 2 * cardPaddingY) / ppi);
                 } else {
                     doc.addImage(defaultPadding, "PNG", (x - cardPaddingX) / ppi, (y - cardPaddingY) / ppi, (w + 2 * cardPaddingX) / ppi, (h + 2 * cardPaddingY) / ppi);
-                    doc.addImage(imageList[i], "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
+                    doc.addImage(img, "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
                 }
+
                 if (useCuttingAids) {
                     doc.addImage(cuttingGuides, "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
                 }
-                count ++;
-            } catch {
-                console.log('image failed.');
+            } catch (error) {
+                console.log('Image failed:', error);
             }
         }
     }
-    doc.save('print.pdf');
 }
 //Manages page
 function setPageSize(size = [8.5, 11]) {

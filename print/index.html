@@ -45,13 +45,17 @@
     <div class="layer margin-bottom-large">
         <div class="drop-area" style="padding: 1rem">
             <div class='padding margin-bottom-large readable-background'>
-                <h5 class='margin-bottom padding input-description'>Upload the images that you'd like to print, or drag-and-drop them</h5>
-                <input type='file' multiple accept='.png, .svg, .jpg, .jpeg, .bmp' placeholder='File Upload' class='input' oninput='uploadFiles(event.target.files, uploadCard, "filename");' data-dropFunction='uploadCard' data-otherParams='filename'>
+                <h5 class='margin-bottom padding input-description'>Upload individual images or a zip file of images</h5>
+                <input type='file' multiple accept='.png, .svg, .jpg, .jpeg, .bmp, .zip' placeholder='File Upload' class='input' oninput='handleFileUpload(event.target.files);' data-dropFunction='uploadCard' data-otherParams='filename'>
             </div>
             <div class="center">
                 <canvas style='height: auto; max-width:850px; width: 100%; background: #fff;'></canvas>
             </div>
         </div>
+    </div>
+    <div class='readable-background padding layer margin-bottom-large'>
+        <h3 class='download padding' onclick='downloadPDF();'>Download your Sheet(s) (PDF)</h3>
+        <h4 class='padding center'>(This may take a few moments depending on the number of images)</h4>
     </div>
     <div class='readable-background padding layer margin-bottom-large'>
 		<h3 class='download padding' onclick='downloadCanvas();'>Download your Sheet (PNG)</h3>
@@ -70,5 +74,6 @@
         </h4>
     </div>
 	<script defer src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.5/jspdf.debug.js'></script>
+    <script defer src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js'></script>
     <script defer src="/print/print.js"></script>
 <!-- END OF CONTENT -->

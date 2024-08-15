@@ -4691,6 +4691,41 @@ function downloadCard(alt = false, jpeg = false) {
 		}
 	}
 }
+async function downloadAllCards() {
+    const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
+    if (!cardKeys || cardKeys.length === 0) {
+        notify('No saved cards found.', 5);
+        return;
+    }
+
+    const zip = new JSZip();
+
+    for (const cardKey of cardKeys) {
+        // Load the saved card
+        await loadCard(cardKey);
+
+        // Give some time for the card to render
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Redraw the card
+        drawCard();
+
+        // Get the image data
+        const imageData = cardCanvas.toDataURL('image/png').split(',')[1];
+
+        // Add the image to the zip
+        zip.file(`${cardKey}.png`, imageData, {base64: true});
+    }
+
+    // Generate and download the zip file
+    const content = await zip.generateAsync({type: "blob"});
+    const downloadElement = document.createElement('a');
+    downloadElement.href = URL.createObjectURL(content);
+    downloadElement.download = 'all_cards.zip';
+    document.body.appendChild(downloadElement);
+    downloadElement.click();
+    downloadElement.remove();
+}
 //IMPORT/SAVE TAB
 function importCard(cardObject) {
 	scryfallCard = cardObject;
@@ -5122,6 +5157,12 @@ async function loadCard(selectedCardKey) {
 			bottomInfoEdited();
 			watermarkEdited();
 		}
+
+		// Trigger the auto frame update
+        // autoFrame();
+
+        // Redraw the card
+        // drawCard();
 	} else {
 		notify(selectedCardKey + ' failed to load.', 5)
 	}

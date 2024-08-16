@@ -4691,7 +4691,7 @@ function downloadCard(alt = false, jpeg = false) {
 		}
 	}
 }
-async function downloadAllCards() {
+async function downloadAllCards(jpeg = false) {
     const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
     if (!cardKeys || cardKeys.length === 0) {
         notify('No saved cards found.', 5);
@@ -4710,11 +4710,14 @@ async function downloadAllCards() {
         // Redraw the card
         drawCard();
 
-        // Get the image data
-        const imageData = cardCanvas.toDataURL('image/png').split(',')[1];
-
-        // Add the image to the zip
-        zip.file(`${cardKey}.png`, imageData, {base64: true});
+		// Get the image data and add the image to the zip
+		if (jpeg) {
+			const imageData = cardCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+		zip.file(`${cardKey}.jpeg`, imageData, {base64: true});
+		} else {
+			const imageData = cardCanvas.toDataURL('image/png').split(',')[1];
+        	zip.file(`${cardKey}.png`, imageData, {base64: true});
+		}
     }
 
     // Generate and download the zip file

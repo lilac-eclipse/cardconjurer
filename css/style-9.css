@@ -940,7 +940,7 @@ textarea.input {
 .creator-grid {
     width: 100%;
     display: grid;
-    grid-template-columns: 450px 750px 1fr; /* Adjusted to three columns */
+    grid-template-columns: 500px 750px 1fr; /* Adjusted to three columns */
     gap: 1rem;
     padding: 1rem 0;
 }

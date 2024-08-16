@@ -5389,7 +5389,8 @@ function updateSetEditor(isInitialLoad = false) {
             row.innerHTML = `
                 <td>${key}</td>
                 <td>${cardData.text.title ? cardData.text.title.text : 'N/A'}</td>
-                <td>${cardData.text.mana ? cardData.text.mana.text : 'N/A'}</td>
+				<td>${cardData.text.type ? cardData.text.type.text : 'N/A'}</td>
+                <td>${cardData.text.mana ? convertManaCost(cardData.text.mana.text) : 'N/A'}</td>
                 <td><button class="delete-card" data-key="${key}">🗑️</button></td>
             `;
             row.style.backgroundColor = getColorFromManaCost(cardData.text.mana ? cardData.text.mana.text : '');
@@ -5421,6 +5422,18 @@ function updateSetEditor(isInitialLoad = false) {
 	if (isInitialLoad && cardKeys.length > 0) {
 		loadCard(cardKeys[0]);
 	}
+}
+function convertManaCost(manaCost) {
+    return manaCost.replace(/\{([^}]+)\}/g, (match, symbol) => {
+        // Convert symbols to lowercase and replace '/' with ''
+        let class_name = symbol.toLowerCase().replace('/', '');
+        
+        // Special cases
+        if (class_name === 'tap') class_name = 't';
+        if (class_name === 'untap') class_name = 'q';
+        
+        return `<i class="ms ms-${class_name} ms-cost"></i>`;
+    });
 }
 
 function customCardSort(a, b) {

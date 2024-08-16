@@ -5285,16 +5285,14 @@ async function loadCard(selectedCardKey) {
 		notify(selectedCardKey + ' failed to load.', 5)
 	}
 }
-function deleteCard() {
-	var keyToDelete = document.querySelector('#load-card-options').value;
-	if (keyToDelete) {
-		var cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
-		cardKeys.splice(cardKeys.indexOf(keyToDelete), 1);
-		cardKeys.sort();
-		localStorage.setItem('cardKeys', JSON.stringify(cardKeys));
-		localStorage.removeItem(keyToDelete);
-		loadAvailableCards(cardKeys);
-	}
+function deleteCard(keyToDelete) {
+    if (keyToDelete) {
+        var cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
+        cardKeys = cardKeys.filter(key => key !== keyToDelete);
+        localStorage.setItem('cardKeys', JSON.stringify(cardKeys));
+        localStorage.removeItem(keyToDelete);
+        updateSetEditor();
+    }
 }
 function deleteSavedCards() {
 	if (confirm('WARNING:\n\nALL of your saved cards will be deleted! If you would like to save these cards, please make sure you have downloaded them first. There is no way to undo this.\n\n(Press "OK" to delete your cards)')) {
@@ -5328,8 +5326,10 @@ function uploadSavedCards(event) {
 }
 // SET EDITOR VIEW
 // Function to update the Set Editor table
-function updateSetEditor() {
-    const cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
+function updateSetEditor(isInitialLoad = false) {
+    let cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
+    cardKeys.sort(customCardSort);  // Sort the keys using the custom sort function
+
     const tableBody = document.getElementById('set-editor-body');
     tableBody.innerHTML = ''; // Clear existing rows
 
@@ -5341,15 +5341,70 @@ function updateSetEditor() {
                 <td>${key}</td>
                 <td>${cardData.text.title ? cardData.text.title.text : 'N/A'}</td>
                 <td>${cardData.text.mana ? cardData.text.mana.text : 'N/A'}</td>
+                <td><button class="delete-card" data-key="${key}">🗑️</button></td>
             `;
             row.style.backgroundColor = getColorFromManaCost(cardData.text.mana ? cardData.text.mana.text : '');
             row.style.cursor = 'pointer';
             tableBody.appendChild(row);
 
             // Add click event to load the card
-            row.addEventListener('click', () => switchCard(key));
+            row.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('delete-card')) {
+                    switchCard(key);
+                }
+            });
         }
     });
+
+    // Add event listeners for delete buttons
+    document.querySelectorAll('.delete-card').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const key = e.target.dataset.key;
+            if (confirm(`Are you sure you want to delete the card "${key}"?`)) {
+                deleteCard(key);
+                updateSetEditor();
+            }
+        });
+    });
+
+	// Load the first card when the page loads
+	if (isInitialLoad && cardKeys.length > 0) {
+		loadCard(cardKeys[0]);
+	}
+}
+
+function customCardSort(a, b) {
+    // Put cards starting with '0' at the top
+    if (a.startsWith('0') && !b.startsWith('0')) return -1;
+    if (!a.startsWith('0') && b.startsWith('0')) return 1;
+
+    // Extract the important part (e.g., "CW03")
+    const aMatch = a.match(/([CURM])([WUBRGZA])(\d+)/);
+    const bMatch = b.match(/([CURM])([WUBRGZA])(\d+)/);
+
+    if (aMatch && bMatch) {
+        const [, aRarity, aColor, aNumber] = aMatch;
+        const [, bRarity, bColor, bNumber] = bMatch;
+
+        // Sort by rarity
+        const rarityOrder = { C: 0, U: 1, R: 2, M: 3 };
+        if (rarityOrder[aRarity] !== rarityOrder[bRarity]) {
+            return rarityOrder[aRarity] - rarityOrder[bRarity];
+        }
+
+        // Sort by color
+        const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6 };
+        if (colorOrder[aColor] !== colorOrder[bColor]) {
+            return colorOrder[aColor] - colorOrder[bColor];
+        }
+
+        // Sort by number
+        return parseInt(aNumber) - parseInt(bNumber);
+    }
+
+    // If the format doesn't match, fall back to alphabetical sorting
+    return a.localeCompare(b);
 }
 
 // Function to determine background color based on mana cost (dark mode version)
@@ -5412,7 +5467,8 @@ saveCard = function(saveFromFile, customKey) {
 };
 
 // Initial update of the Set Editor
-updateSetEditor();
+updateSetEditor(true);
+
 //TUTORIAL TAB
 function loadTutorialVideo() {
 	var video = document.querySelector('.video > iframe');

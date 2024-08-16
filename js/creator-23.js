@@ -5518,6 +5518,25 @@ saveCard = function(saveFromFile, customKey) {
 // Initial update of the Set Editor
 updateSetEditor(true);
 
+//DEBUG
+function logRulesText() {
+    const cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
+    const rulesList = cardKeys.map(key => {
+        const cardData = JSON.parse(localStorage.getItem(key));
+        if (cardData && cardData.text && cardData.text.title && cardData.text.title.text !== "Unamed Card") {
+            let rulesText = cardData.text.rules ? cardData.text.rules.text : '';
+            const flavorIndex = rulesText.indexOf('{flavor}');
+            if (flavorIndex !== -1) {
+                rulesText = rulesText.substring(0, flavorIndex);
+            }
+            return rulesText.trim();
+        }
+        return null;
+    }).filter(text => text !== null);
+
+    console.log(JSON.stringify(rulesList));
+}
+
 //TUTORIAL TAB
 function loadTutorialVideo() {
 	var video = document.querySelector('.video > iframe');

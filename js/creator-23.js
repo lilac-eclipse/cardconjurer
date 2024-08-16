@@ -4800,7 +4800,7 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys, isPro
         await loadCard(cardKey);
 
         if (isPrototype) {
-            applyPrototypeChanges();
+            applyPrototypeChanges(cardKey);
             await loadPrototypeImage();
         }
 
@@ -4824,7 +4824,7 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys, isPro
     }
 }
 
-function applyPrototypeChanges() {
+function applyPrototypeChanges(cardKey) {
     card.artSource = "http://localhost:8080/local_art/prototype.png";
     card.artX = 0.15572139303482588;
     card.artY = -0.2107320540156361;
@@ -4835,6 +4835,11 @@ function applyPrototypeChanges() {
     document.querySelector('#art-y').value = scaleY(card.artY) - scaleHeight(card.marginY);
     document.querySelector('#art-zoom').value = card.artZoom * 100;
     document.querySelector('#art-rotate').value = card.artRotate;
+
+    // Replace card name with cardKey
+    if (card.text && card.text.title) {
+        card.text.title.text = cardKey;
+    }
 
     if (card.text && card.text.rules) {
         const rulesText = card.text.rules.text;

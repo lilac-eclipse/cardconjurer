@@ -4772,36 +4772,45 @@ async function downloadAllCardsPDF(isPrototype = false) {
         format: [page[0], page[1]]
     });
 
-    const cardsPerPage = 9; // 3x3 grid
-    const totalPages = Math.ceil(namedCards.length / cardsPerPage);
+	// Break cards into groups
+	const groupedCards = []
+	let currGroup = ''
+	let group = []
+	for (currCard of namedCards) {
+		const currCardData = JSON.parse(localStorage.getItem(currCard));
+		if (currCardData.infoLanguage.slice(0, 2) != currGroup) {
+			currGroup = currCardData.infoLanguage.slice(0, 2)
+			if (group.length > 0) { groupedCards.push(group) }
+			group = []
+		}
+		group.push(currCard)
+	}
+	groupedCards.push(group)
+
 
     // Create a temporary canvas for image processing
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
 
-    let currentGroup = '';
-
-    for (let pageNum = 0; pageNum < totalPages; pageNum++) {
-        if (pageNum > 0) {
-            doc.addPage();
-        }
-        const startIndex = pageNum * cardsPerPage;
-        const pageGroup = namedCards[startIndex].substring(0, 2);
-        
-        if (pageGroup !== currentGroup) {
-            currentGroup = pageGroup;
-            if (pageNum > 0) {
-                doc.addPage();
-            }
-        }
-        
-        await drawPDFPage(doc, startIndex, tempCanvas, tempCtx, namedCards, isPrototype);
-    }
+	// Add cards to PDF in groups
+	const cardsPerPage = 9; // 3x3 grid
+	let pageNumber = 1
+	for (g of groupedCards) {
+		for (let i = 0; i < g.length; i += cardsPerPage) {
+			const chunk = g.slice(i, i + cardsPerPage);
+			
+			await drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype);
+			addPageNumber(doc, pageNumber);
+			doc.addPage();
+			pageNumber++;
+		}
+	}
+	doc.deletePage(doc.internal.getNumberOfPages());
 
     doc.save('all_cards.pdf');
 }
 
-async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys, isPrototype) {
+async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype) {
     const targetDPI = 300;
     const scaleFactor = targetDPI / ppi;
     const cw = cardWidth + 2 * cardPaddingX + cardMarginX;
@@ -4811,8 +4820,7 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys, isPro
     const pageMarginX = Math.floor((page[0] * ppi - cardsX * cw) / 2);
     const pageMarginY = Math.floor((page[1] * ppi - cardsY * ch) / 2);
 
-    for (let i = 0; i < 9 && startIndex + i < cardKeys.length; i++) {
-        const cardKey = cardKeys[startIndex + i];
+    for ([i, cardKey] of chunk.entries()) {
         await loadCard(cardKey);
 
         if (isPrototype) {
@@ -4838,6 +4846,16 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys, isPro
             await loadCard(cardKey); // Revert changes
         }
     }
+}
+
+function addPageNumber(doc, pageNumber) {
+    const totalPages = doc.internal.getNumberOfPages();
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Page ${pageNumber} of ${totalPages}`, 
+        doc.internal.pageSize.width / 2, 
+        0.16
+    );
 }
 
 function applyPrototypeChanges(cardKey) {

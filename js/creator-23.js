@@ -4763,8 +4763,13 @@ async function downloadAllCardsPDF() {
         format: [page[0], page[1]]
     });
 
+    const namedCards = cardKeys.filter(key => {
+        const cardData = JSON.parse(localStorage.getItem(key));
+        return cardData && cardData.text && cardData.text.title && cardData.text.title.text !== "Unamed Card";
+    });
+
     const cardsPerPage = 9; // 3x3 grid
-    const totalPages = Math.ceil(cardKeys.length / cardsPerPage);
+    const totalPages = Math.ceil(namedCards.length / cardsPerPage);
 
     // Create a temporary canvas for image processing
     const tempCanvas = document.createElement('canvas');
@@ -4774,7 +4779,7 @@ async function downloadAllCardsPDF() {
         if (pageNum > 0) {
             doc.addPage();
         }
-        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx, cardKeys);
+        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx, namedCards);
     }
 
     doc.save('all_cards.pdf');
@@ -4806,7 +4811,12 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys) {
         }
     }
 
-    // Draw cards
+    // Preload cards for formatting
+	for (c in cardKeys) {
+		loadCard(c, true);
+	}
+
+	// Draw cards
     for (let i = 0; i < 9 && startIndex + i < cardKeys.length; i++) {
         const cardKey = cardKeys[startIndex + i];
         await loadCard(cardKey);
@@ -5211,7 +5221,7 @@ function saveCard(saveFromFile) {
 		notify('You have exceeded your 5MB of local storage, and your card has failed to save. If you would like to continue saving cards, please download all saved cards, then delete all saved cards to free up space.<br><br>Local storage is most often exceeded by uploading large images directly from your computer. If possible/convenient, using a URL avoids the need to save these large images.<br><br>Apologies for the inconvenience.');
 	}
 }
-async function loadCard(selectedCardKey) {
+async function loadCard(selectedCardKey, nonotify=false) {
 	//clear the draggable frames
 	document.querySelector('#frame-list').innerHTML = null;
 	//clear the existing card, then replace it with the new JSON
@@ -5219,6 +5229,16 @@ async function loadCard(selectedCardKey) {
 	card = JSON.parse(localStorage.getItem(selectedCardKey));
 	//if the card was loaded properly...
 	if (card) {
+		// Assign collector number
+        const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
+        cardKeys.sort(collectorSort);
+        const totalCards = cardKeys.length;
+        const cardIndex = cardKeys.indexOf(selectedCardKey);
+        const collectorNumber = `${String(cardIndex + 1).padStart(4, '0')}/${String(totalCards).padStart(4, '0')}`;
+
+        // document.querySelector('#info-number').value = collectorNumber;
+        card.infoNumber = collectorNumber;
+		
 		//load values from card into html inputs
 		document.querySelector('#info-number').value = card.infoNumber;
 		document.querySelector('#info-rarity').value = card.infoRarity;
@@ -5281,7 +5301,7 @@ async function loadCard(selectedCardKey) {
 
         // Redraw the card
         // drawCard();
-	} else {
+	} else if (!nonotify) {
 		notify(selectedCardKey + ' failed to load.', 5)
 	}
 }
@@ -5323,6 +5343,24 @@ function uploadSavedCards(event) {
 		JSON.parse(reader.result).forEach(item => saveCard(item));
 	}
 	reader.readAsText(event.target.files[0]);
+}
+function collectorSort(a, b) {
+    const cardA = JSON.parse(localStorage.getItem(a));
+    const cardB = JSON.parse(localStorage.getItem(b));
+
+    // Sort by language digit 2 (W, U, B, R, G, Z, A)
+    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6 };
+    const colorA = cardA.infoLanguage ? cardA.infoLanguage[1] : 'Z';
+    const colorB = cardB.infoLanguage ? cardB.infoLanguage[1] : 'Z';
+
+    if (colorOrder[colorA] !== colorOrder[colorB]) {
+        return colorOrder[colorA] - colorOrder[colorB];
+    }
+
+    // Sort alphabetically by name
+    const nameA = cardA.text.title ? cardA.text.title.text.toLowerCase() : '';
+    const nameB = cardB.text.title ? cardB.text.title.text.toLowerCase() : '';
+    return nameA.localeCompare(nameB);
 }
 // SET EDITOR VIEW
 // Function to update the Set Editor table

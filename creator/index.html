@@ -93,7 +93,22 @@
 			</div>
 		</div>
 		<!-- Regular stuff -->
-		<div class='creator-grid margin-bottom-large'>
+		<div class="creator-grid">
+			<div id="set-editor-container">
+				<h3 class="center margin-bottom">Set Editor</h3>
+				<table id="set-editor-table">
+					<thead>
+						<tr>
+							<th>Card Key</th>
+							<th>Name</th>
+							<th>Mana Cost</th>
+						</tr>
+					</thead>
+					<tbody id="set-editor-body">
+						<!-- Card rows will be dynamically inserted here -->
+					</tbody>
+				</table>
+			</div>
 			<canvas class='creator-canvas box-shadow' id='previewCanvas' width='1005' height='1407'></canvas>
 			<div class='creator-menu box-shadow'>
 				<div id='creator-menu-tabs' class='creator-menu-tabs'>

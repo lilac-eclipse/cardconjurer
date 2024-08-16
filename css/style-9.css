@@ -935,3 +935,97 @@ textarea.input {
 	grid-gap: 0.5rem;
 	padding: 1rem 2rem;
 }
+/* My added styles below here */
+/* Creator Grid/Canvas/Menu */
+.creator-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 450px 750px 1fr; /* Adjusted to three columns */
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.creator-canvas {
+    max-width: 750px;
+    width: 100%;
+    height: auto;
+    grid-column: 2; /* Place the canvas in the second column */
+}
+
+.creator-menu {
+    width: 100%;
+    grid-column: 3; /* Place the menu in the third column */
+}
+
+/* Set Editor Styles */
+#set-editor-container {
+    grid-column: 1; /* Place the set editor in the first column */
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    background-color: var(--input-background);
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+#set-editor-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--font-color);
+    font-size: 0.9rem;
+}
+
+#set-editor-table th,
+#set-editor-table td {
+    border: 1px solid #444;
+    padding: 8px;
+    text-align: left;
+}
+
+#set-editor-table th {
+    background-color: var(--color-primary);
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#set-editor-table tr {
+    transition: background-color 0.3s ease;
+}
+
+#set-editor-table tr:hover {
+    background-color: var(--input-background-selected);
+    cursor: pointer;
+}
+
+/* Scrollbar styles for the table container */
+#set-editor-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+#set-editor-container::-webkit-scrollbar-track {
+    background: var(--input-background);
+}
+
+#set-editor-container::-webkit-scrollbar-thumb {
+    background-color: var(--color-primary);
+    border-radius: 5px;
+    border: 2px solid var(--input-background);
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 1250px) {
+    .creator-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #set-editor-container {
+        max-height: 400px;
+        margin-bottom: 1rem;
+    }
+
+    .creator-canvas,
+    .creator-menu {
+        grid-column: 1;
+    }
+}

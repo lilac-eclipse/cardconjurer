@@ -5326,6 +5326,93 @@ function uploadSavedCards(event) {
 	}
 	reader.readAsText(event.target.files[0]);
 }
+// SET EDITOR VIEW
+// Function to update the Set Editor table
+function updateSetEditor() {
+    const cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
+    const tableBody = document.getElementById('set-editor-body');
+    tableBody.innerHTML = ''; // Clear existing rows
+
+    cardKeys.forEach(key => {
+        const cardData = JSON.parse(localStorage.getItem(key));
+        if (cardData) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${key}</td>
+                <td>${cardData.text.title ? cardData.text.title.text : 'N/A'}</td>
+                <td>${cardData.text.mana ? cardData.text.mana.text : 'N/A'}</td>
+            `;
+            row.style.backgroundColor = getColorFromManaCost(cardData.text.mana ? cardData.text.mana.text : '');
+            row.style.cursor = 'pointer';
+            tableBody.appendChild(row);
+
+            // Add click event to load the card
+            row.addEventListener('click', () => switchCard(key));
+        }
+    });
+}
+
+// Function to determine background color based on mana cost (dark mode version)
+function getColorFromManaCost(manaCost) {
+    if (manaCost.includes('W')) return '#3A3A2D';
+    if (manaCost.includes('U')) return '#203849';
+    if (manaCost.includes('B')) return '#2B2724';
+    if (manaCost.includes('R')) return '#3A2323';
+    if (manaCost.includes('G')) return '#233327';
+    return '#2A2A2A'; // Default color for colorless or multi-color
+}
+
+// Function to switch cards (save current, load new)
+function switchCard(newCardKey) {
+    // Save the current card
+    saveCurrentCard();
+
+    // Load the new card
+    loadCard(newCardKey);
+
+    // Update the Set Editor
+    updateSetEditor();
+}
+
+// Function to save the current card
+function saveCurrentCard() {
+    const setCode = document.querySelector('#info-set').value;
+    const language = document.querySelector('#info-language').value;
+    const cardKey = `${setCode} ${language}`;
+    
+    saveCard(undefined, cardKey);
+}
+
+// Modify the existing saveCard function to accept a custom key
+const originalSaveCard = saveCard;
+saveCard = function(saveFromFile, customKey) {
+    if (customKey) {
+        // Use the custom key if provided
+        var cardKey = customKey;
+        var cardToSave = JSON.parse(JSON.stringify(card));
+        cardToSave.frames.forEach(frame => {
+            delete frame.image;
+            frame.masks.forEach(mask => delete mask.image);
+        });
+
+        localStorage.setItem(cardKey, JSON.stringify(cardToSave));
+        
+        var cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
+        if (!cardKeys.includes(cardKey)) {
+            cardKeys.push(cardKey);
+            cardKeys.sort();
+            localStorage.setItem('cardKeys', JSON.stringify(cardKeys));
+        }
+    } else {
+        // Use the original function if no custom key is provided
+        originalSaveCard(saveFromFile);
+    }
+    
+    updateSetEditor();
+};
+
+// Initial update of the Set Editor
+updateSetEditor();
 //TUTORIAL TAB
 function loadTutorialVideo() {
 	var video = document.querySelector('.video > iframe');

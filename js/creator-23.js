@@ -4749,7 +4749,7 @@ blackPixel.src = 'black.png';
 var cuttingGuides = new Image();
 cuttingGuides.src = 'cuttingGuides.svg';
 
-async function downloadAllCardsPDF() {
+async function downloadAllCardsPDF(isPrototype = false) {
     const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
     if (!cardKeys || cardKeys.length === 0) {
         notify('No saved cards found.', 5);
@@ -4779,17 +4779,15 @@ async function downloadAllCardsPDF() {
         if (pageNum > 0) {
             doc.addPage();
         }
-        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx, namedCards);
+        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx, namedCards, isPrototype);
     }
 
     doc.save('all_cards.pdf');
 }
 
-async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys) {
+async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys, isPrototype) {
     const targetDPI = 300;
     const scaleFactor = targetDPI / ppi;
-
-    // Calculate card and page dimensions
     const cw = cardWidth + 2 * cardPaddingX + cardMarginX;
     const ch = cardHeight + 2 * cardPaddingY + cardMarginY;
     const cardsX = Math.floor(page[0] / (cw / ppi));
@@ -4797,62 +4795,70 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys) {
     const pageMarginX = Math.floor((page[0] * ppi - cardsX * cw) / 2);
     const pageMarginY = Math.floor((page[1] * ppi - cardsY * ch) / 2);
 
-    // Draw cutting guides
-    if (useCuttingAids) {
-        for (var i = 0; i < cardsX; i++) {
-            var x = pageMarginX + i * cw + Math.floor(cardMarginX / 2) + cardPaddingX - aidOffset;
-            doc.addImage(blackPixel, "PNG", x / ppi, 0, aidWidth / ppi, page[1]);
-            doc.addImage(blackPixel, "PNG", (x + cardWidth) / ppi, 0, aidWidth / ppi, page[1]);
-        }
-        for (var j = 0; j < cardsY; j++) {
-            var y = pageMarginY + j * ch + Math.floor(cardMarginY / 2) + cardPaddingY - aidOffset;
-            doc.addImage(blackPixel, "PNG", 0, y / ppi, page[0], aidWidth / ppi);
-            doc.addImage(blackPixel, "PNG", 0, (y + cardHeight) / ppi, page[0], aidWidth / ppi);
-        }
-    }
-
-    // Preload card formatting
-	for (c in cardKeys) {
-		loadCard(c, true);
-	}
-
-	// Draw cards
     for (let i = 0; i < 9 && startIndex + i < cardKeys.length; i++) {
         const cardKey = cardKeys[startIndex + i];
         await loadCard(cardKey);
-        // Give some time for the card to render
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Redraw the card
+        if (isPrototype) {
+            applyPrototypeChanges();
+            await loadPrototypeImage();
+        }
+
         drawCard();
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         const x = pageMarginX + (i % 3) * cw + Math.floor(cardMarginX / 2) + cardPaddingX;
         const y = pageMarginY + Math.floor(i / 3) * ch + Math.floor(cardMarginY / 2) + cardPaddingY;
         const w = cardWidth;
         const h = cardHeight;
 
-        // Set temporary canvas size
         tempCanvas.width = Math.round(w * scaleFactor);
         tempCanvas.height = Math.round(h * scaleFactor);
+        tempCtx.drawImage(cardCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
-        // Draw and scale the image
-        if (imgIncludesBleedEdge) {
-            tempCtx.drawImage(cardCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
-        } else {
-            tempCtx.fillStyle = bleedEdgeColor;
-            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            tempCtx.drawImage(cardCanvas, cardPaddingX * scaleFactor, cardPaddingY * scaleFactor, 
-                              w * scaleFactor, h * scaleFactor);
-        }
+        doc.addImage(tempCanvas, "JPEG", x / ppi, y / ppi, w / ppi, h / ppi, undefined, 'MEDIUM', 0);
 
-        // Add the processed image to the PDF
-        doc.addImage(tempCanvas, "JPEG", x / ppi, y / ppi, w / ppi, h / ppi, 
-                     undefined, 'MEDIUM', 0);
-
-        if (useCuttingAids) {
-            doc.addImage(cuttingGuides, "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
+        if (isPrototype) {
+            await loadCard(cardKey); // Revert changes
         }
     }
+}
+
+function applyPrototypeChanges() {
+    card.artSource = "http://localhost:8080/local_art/prototype.png";
+    card.artX = 0.15572139303482588;
+    card.artY = -0.2107320540156361;
+    card.artZoom = 1.642;
+    card.artRotate = 11.5;
+
+    document.querySelector('#art-x').value = scaleX(card.artX) - scaleWidth(card.marginX);
+    document.querySelector('#art-y').value = scaleY(card.artY) - scaleHeight(card.marginY);
+    document.querySelector('#art-zoom').value = card.artZoom * 100;
+    document.querySelector('#art-rotate').value = card.artRotate;
+
+    if (card.text && card.text.rules) {
+        const rulesText = card.text.rules.text;
+        const flavorIndex = rulesText.indexOf('{flavor}');
+        if (flavorIndex !== -1) {
+            card.text.rules.text = rulesText.substring(0, flavorIndex) + '{flavor}(secret)';
+        }
+    }
+}
+
+function loadPrototypeImage() {
+    return new Promise((resolve) => {
+        const prototypeImg = new Image();
+        prototypeImg.onload = () => {
+            art.src = prototypeImg.src;
+            artEdited();
+            resolve();
+        };
+        prototypeImg.onerror = () => {
+            console.error("Failed to load prototype image");
+            resolve();
+        };
+        prototypeImg.src = card.artSource;
+    });
 }
 //IMPORT/SAVE TAB
 function importCard(cardObject) {

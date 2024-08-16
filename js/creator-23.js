@@ -4756,16 +4756,20 @@ async function downloadAllCardsPDF(isPrototype = false) {
         return;
     }
 
+    // Sort the cardKeys using the custom sort function
+    cardKeys.sort(cardRaritySort);
+
+    // Filter out unnamed cards
+    const namedCards = cardKeys.filter(key => {
+        const cardData = JSON.parse(localStorage.getItem(key));
+        return cardData && cardData.text && cardData.text.title && cardData.text.title.text !== "";
+    });
+
     const pageOrientation = page[0] > page[1] ? 'landscape' : 'portrait';
     const doc = new jsPDF({
         orientation: pageOrientation,
         unit: 'in',
         format: [page[0], page[1]]
-    });
-
-    const namedCards = cardKeys.filter(key => {
-        const cardData = JSON.parse(localStorage.getItem(key));
-        return cardData && cardData.text && cardData.text.title && cardData.text.title.text !== "";
     });
 
     const cardsPerPage = 9; // 3x3 grid
@@ -4775,11 +4779,23 @@ async function downloadAllCardsPDF(isPrototype = false) {
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
 
+    let currentGroup = '';
+
     for (let pageNum = 0; pageNum < totalPages; pageNum++) {
         if (pageNum > 0) {
             doc.addPage();
         }
-        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx, namedCards, isPrototype);
+        const startIndex = pageNum * cardsPerPage;
+        const pageGroup = namedCards[startIndex].substring(0, 2);
+        
+        if (pageGroup !== currentGroup) {
+            currentGroup = pageGroup;
+            if (pageNum > 0) {
+                doc.addPage();
+            }
+        }
+        
+        await drawPDFPage(doc, startIndex, tempCanvas, tempCtx, namedCards, isPrototype);
     }
 
     doc.save('all_cards.pdf');
@@ -5377,7 +5393,7 @@ function collectorSort(a, b) {
 // Function to update the Set Editor table
 function updateSetEditor(isInitialLoad = false) {
     let cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
-    cardKeys.sort(customCardSort);  // Sort the keys using the custom sort function
+    cardKeys.sort(cardRaritySort);  // Sort the keys using the custom sort function
 
     const tableBody = document.getElementById('set-editor-body');
     tableBody.innerHTML = ''; // Clear existing rows
@@ -5436,37 +5452,29 @@ function convertManaCost(manaCost) {
     });
 }
 
-function customCardSort(a, b) {
-    // Put cards starting with '0' at the top
-    if (a.startsWith('0') && !b.startsWith('0')) return -1;
-    if (!a.startsWith('0') && b.startsWith('0')) return 1;
+function cardRaritySort(a, b) {
+    // Define the order of rarities and colors
+    const rarityOrder = { C: 0, U: 1, R: 2, M: 3 };
+    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6 };
 
-    // Extract the important part (e.g., "CW03")
-    const aMatch = a.match(/([CURM])([WUBRGZA])(\d+)/);
-    const bMatch = b.match(/([CURM])([WUBRGZA])(\d+)/);
+    // Extract rarity and color from the card keys
+    const [, aRarity, aColor] = a.match(/([CURM])([WUBRGZA])(\d+)/) || [null, 'Z', 'Z', '0'];
+    const [, bRarity, bColor] = b.match(/([CURM])([WUBRGZA])(\d+)/) || [null, 'Z', 'Z', '0'];
 
-    if (aMatch && bMatch) {
-        const [, aRarity, aColor, aNumber] = aMatch;
-        const [, bRarity, bColor, bNumber] = bMatch;
-
-        // Sort by rarity
-        const rarityOrder = { C: 0, U: 1, R: 2, M: 3 };
-        if (rarityOrder[aRarity] !== rarityOrder[bRarity]) {
-            return rarityOrder[aRarity] - rarityOrder[bRarity];
-        }
-
-        // Sort by color
-        const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6 };
-        if (colorOrder[aColor] !== colorOrder[bColor]) {
-            return colorOrder[aColor] - colorOrder[bColor];
-        }
-
-        // Sort by number
-        return parseInt(aNumber) - parseInt(bNumber);
+    // Compare rarities
+    if (rarityOrder[aRarity] !== rarityOrder[bRarity]) {
+        return rarityOrder[aRarity] - rarityOrder[bRarity];
     }
 
-    // If the format doesn't match, fall back to alphabetical sorting
-    return a.localeCompare(b);
+    // If rarities are the same, compare colors
+    if (colorOrder[aColor] !== colorOrder[bColor]) {
+        return colorOrder[aColor] - colorOrder[bColor];
+    }
+
+    // If colors are the same, compare numbers
+    const aNumber = parseInt(a.match(/\d+/)[0]);
+    const bNumber = parseInt(b.match(/\d+/)[0]);
+    return aNumber - bNumber;
 }
 
 // Function to determine background color based on mana cost (dark mode version)

@@ -4307,7 +4307,7 @@ function fetchSetSymbol() {
 	var setRarity = document.querySelector('#set-symbol-rarity').value.toLowerCase().replace('uncommon', 'u').replace('common', 'c').replace('rare', 'r').replace('mythic', 'm') || 'c';
 	if (['sld', 'a22', 'a23', 'j22'].includes(setCode.toLowerCase())) {
 		uploadSetSymbol(fixUri(`/img/setSymbols/custom/${setCode.toLowerCase()}-${setRarity}.png`), 'resetSetSymbol');
-	} else if (['cc', 'logan', 'joe'].includes(setCode.toLowerCase())) {
+	} else if (['cc', 'logan', 'joe', 'luv'].includes(setCode.toLowerCase())) {
 		uploadSetSymbol(fixUri(`/img/setSymbols/custom/${setCode.toLowerCase()}-${setRarity}.svg`), 'resetSetSymbol');
 	} else if (document.querySelector("#set-symbol-source").value == 'gatherer') {
 		if (setSymbolAliases.has(setCode.toLowerCase())) setCode = setSymbolAliases.get(setCode.toLowerCase());
@@ -4811,7 +4811,7 @@ async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys) {
         }
     }
 
-    // Preload cards for formatting
+    // Preload card formatting
 	for (c in cardKeys) {
 		loadCard(c, true);
 	}

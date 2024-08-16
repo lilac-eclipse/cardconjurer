@@ -735,6 +735,7 @@
 				</div>
 				<div class='readable-background padding'>
 					<h3 class='download padding' onclick='downloadCard();'>Download your card</h3>
+					<h5 onclick='downloadAllCardsPDF();' class='padding download input-description' style='text-align: left;'>Click here to download all cards as PDF</h5>
 					<h5 onclick='downloadAllCards(true);' class='padding download input-description' style='text-align: left;'>Click here to download all cards as JPEG ZIP</h5>
 					<h5 onclick='downloadAllCards(false);' class='padding download input-description' style='text-align: left;'>Click here to download all cards as PNG ZIP</h5>
 					<h5 onclick='downloadCard(false, true);' id='downloadJpg' href='' target='_blank' class='padding download input-description' style='text-align: left;'>Click here to download as JPEG</h5>
@@ -925,6 +926,7 @@
 
 	</div>
 	<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+	<script defer src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.5/jspdf.debug.js'></script>
 	<script defer src='/js/creator-23.js'></script>
 	<script defer src='/js/frameSearch.js'></script>
 <!-- END OF CONTENT -->

@@ -4729,6 +4729,121 @@ async function downloadAllCards(jpeg = false) {
     downloadElement.click();
     downloadElement.remove();
 }
+var ppi = 300;
+var page = [8.5, 11];
+var cardWidth = 2.5 * ppi;
+var cardHeight = 3.5 * ppi;
+var cardPaddingX = 0;
+var cardPaddingY = 0;
+var cardMarginX = 0;
+var cardMarginY = 0;
+var imgIncludesBleedEdge = true;
+var bleedEdgeColor = "black";
+var useCuttingAids = false;
+var aidWidth = 2;
+var aidOffset = aidWidth / 2;
+
+// Make sure these images are loaded
+var blackPixel = new Image();
+blackPixel.src = 'black.png';
+var cuttingGuides = new Image();
+cuttingGuides.src = 'cuttingGuides.svg';
+
+async function downloadAllCardsPDF() {
+    const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
+    if (!cardKeys || cardKeys.length === 0) {
+        notify('No saved cards found.', 5);
+        return;
+    }
+
+    const pageOrientation = page[0] > page[1] ? 'landscape' : 'portrait';
+    const doc = new jsPDF({
+        orientation: pageOrientation,
+        unit: 'in',
+        format: [page[0], page[1]]
+    });
+
+    const cardsPerPage = 9; // 3x3 grid
+    const totalPages = Math.ceil(cardKeys.length / cardsPerPage);
+
+    // Create a temporary canvas for image processing
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+
+    for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+        if (pageNum > 0) {
+            doc.addPage();
+        }
+        await drawPDFPage(doc, pageNum * cardsPerPage, tempCanvas, tempCtx, cardKeys);
+    }
+
+    doc.save('all_cards.pdf');
+}
+
+async function drawPDFPage(doc, startIndex, tempCanvas, tempCtx, cardKeys) {
+    const targetDPI = 300;
+    const scaleFactor = targetDPI / ppi;
+
+    // Calculate card and page dimensions
+    const cw = cardWidth + 2 * cardPaddingX + cardMarginX;
+    const ch = cardHeight + 2 * cardPaddingY + cardMarginY;
+    const cardsX = Math.floor(page[0] / (cw / ppi));
+    const cardsY = Math.floor(page[1] / (ch / ppi));
+    const pageMarginX = Math.floor((page[0] * ppi - cardsX * cw) / 2);
+    const pageMarginY = Math.floor((page[1] * ppi - cardsY * ch) / 2);
+
+    // Draw cutting guides
+    if (useCuttingAids) {
+        for (var i = 0; i < cardsX; i++) {
+            var x = pageMarginX + i * cw + Math.floor(cardMarginX / 2) + cardPaddingX - aidOffset;
+            doc.addImage(blackPixel, "PNG", x / ppi, 0, aidWidth / ppi, page[1]);
+            doc.addImage(blackPixel, "PNG", (x + cardWidth) / ppi, 0, aidWidth / ppi, page[1]);
+        }
+        for (var j = 0; j < cardsY; j++) {
+            var y = pageMarginY + j * ch + Math.floor(cardMarginY / 2) + cardPaddingY - aidOffset;
+            doc.addImage(blackPixel, "PNG", 0, y / ppi, page[0], aidWidth / ppi);
+            doc.addImage(blackPixel, "PNG", 0, (y + cardHeight) / ppi, page[0], aidWidth / ppi);
+        }
+    }
+
+    // Draw cards
+    for (let i = 0; i < 9 && startIndex + i < cardKeys.length; i++) {
+        const cardKey = cardKeys[startIndex + i];
+        await loadCard(cardKey);
+        // Give some time for the card to render
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Redraw the card
+        drawCard();
+
+        const x = pageMarginX + (i % 3) * cw + Math.floor(cardMarginX / 2) + cardPaddingX;
+        const y = pageMarginY + Math.floor(i / 3) * ch + Math.floor(cardMarginY / 2) + cardPaddingY;
+        const w = cardWidth;
+        const h = cardHeight;
+
+        // Set temporary canvas size
+        tempCanvas.width = Math.round(w * scaleFactor);
+        tempCanvas.height = Math.round(h * scaleFactor);
+
+        // Draw and scale the image
+        if (imgIncludesBleedEdge) {
+            tempCtx.drawImage(cardCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+        } else {
+            tempCtx.fillStyle = bleedEdgeColor;
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(cardCanvas, cardPaddingX * scaleFactor, cardPaddingY * scaleFactor, 
+                              w * scaleFactor, h * scaleFactor);
+        }
+
+        // Add the processed image to the PDF
+        doc.addImage(tempCanvas, "JPEG", x / ppi, y / ppi, w / ppi, h / ppi, 
+                     undefined, 'MEDIUM', 0);
+
+        if (useCuttingAids) {
+            doc.addImage(cuttingGuides, "PNG", x / ppi, y / ppi, w / ppi, h / ppi);
+        }
+    }
+}
 //IMPORT/SAVE TAB
 function importCard(cardObject) {
 	scryfallCard = cardObject;

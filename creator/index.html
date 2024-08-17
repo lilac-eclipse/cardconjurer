@@ -96,6 +96,7 @@
 		<div class="creator-grid">
 			<div id="set-editor-container">
 				<h3 class="center margin-bottom">Set Editor</h3>
+				<button id="view-all-cards" class="input">View All Cards</button>
 				<button onclick="logAllCardsData()" style="font-size: 0.8em; padding: 5px 10px;">Log All</button>
 				<button onclick="logCurrentCardData()" style="font-size: 0.8em; padding: 5px 10px;">Log Current</button>
 				<button onclick="logFullCurrentCardData()" style="font-size: 0.8em; padding: 5px 10px;">Log Detailed</button>
@@ -941,6 +942,14 @@
 	-->
 
 	</div>
+
+	<div id="full-screen-cards" class="full-screen-cards">
+		<div class="full-screen-cards-content">
+		  <button id="close-full-screen" class="input">Close</button>
+		  <div id="card-grid"></div>
+		</div>
+	</div>
+
 	<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 	<script defer src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.5/jspdf.debug.js'></script>
 	<script defer src='/js/creator-23.js'></script>

@@ -4759,10 +4759,11 @@ async function downloadAllCardsPDF(isPrototype = false) {
     // Sort the cardKeys using the custom sort function
     cardKeys.sort(cardRaritySort);
 
-    // Filter out unnamed cards
+    // Filter out unnamed and art cards
     const namedCards = cardKeys.filter(key => {
         const cardData = JSON.parse(localStorage.getItem(key));
-        return cardData && cardData.text && cardData.text.title && cardData.text.title.text !== "";
+        return cardData && cardData.text && cardData.text.title && cardData.text.title.text !== "" &&
+		  (!isPrototype || cardData.infoLanguage.substring(0, 2) !== "IL"); // only incl art cards on non prototype
     });
 
     const pageOrientation = page[0] > page[1] ? 'landscape' : 'portrait';
@@ -4810,7 +4811,7 @@ async function downloadAllCardsPDF(isPrototype = false) {
     doc.save('all_cards.pdf');
 }
 
-async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype) {
+async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype, signal) {
     const targetDPI = 300;
     const scaleFactor = targetDPI / ppi;
     const cw = cardWidth + 2 * cardPaddingX + cardMarginX;
@@ -4820,7 +4821,9 @@ async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype) {
     const pageMarginX = Math.floor((page[0] * ppi - cardsX * cw) / 2);
     const pageMarginY = Math.floor((page[1] * ppi - cardsY * ch) / 2);
 
-    for ([i, cardKey] of chunk.entries()) {
+    for (const [i, cardKey] of chunk.entries()) {
+        if (signal && signal.aborted) return;
+
         await loadCard(cardKey);
 
         if (isPrototype) {
@@ -4840,7 +4843,9 @@ async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype) {
         tempCanvas.height = Math.round(h * scaleFactor);
         tempCtx.drawImage(cardCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
-        doc.addImage(tempCanvas, "JPEG", x / ppi, y / ppi, w / ppi, h / ppi, undefined, 'MEDIUM', 0);
+        if (doc) {
+            doc.addImage(tempCanvas, "JPEG", x / ppi, y / ppi, w / ppi, h / ppi, undefined, 'MEDIUM', 0);
+        }
 
         if (isPrototype) {
             await loadCard(cardKey); // Revert changes
@@ -5266,89 +5271,82 @@ function saveCard(saveFromFile) {
 		notify('You have exceeded your 5MB of local storage, and your card has failed to save. If you would like to continue saving cards, please download all saved cards, then delete all saved cards to free up space.<br><br>Local storage is most often exceeded by uploading large images directly from your computer. If possible/convenient, using a URL avoids the need to save these large images.<br><br>Apologies for the inconvenience.');
 	}
 }
-async function loadCard(selectedCardKey, nonotify=false) {
-	//clear the draggable frames
-	document.querySelector('#frame-list').innerHTML = null;
-	//clear the existing card, then replace it with the new JSON
-	card = {};
-	card = JSON.parse(localStorage.getItem(selectedCardKey));
-	//if the card was loaded properly...
-	if (card) {
-		// Assign collector number
+async function loadCard(selectedCardKey, nonotify = false, silent = false) {
+    //clear the draggable frames
+    document.querySelector('#frame-list').innerHTML = null;
+    //clear the existing card, then replace it with the new JSON
+    card = {};
+    card = JSON.parse(localStorage.getItem(selectedCardKey));
+    //if the card was loaded properly...
+    if (card) {
+        // Assign collector number
         const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
         cardKeys.sort(collectorSort);
         const totalCards = cardKeys.length;
         const cardIndex = cardKeys.indexOf(selectedCardKey);
         const collectorNumber = `${String(cardIndex + 1).padStart(4, '0')}/${String(totalCards).padStart(4, '0')}`;
 
-        // document.querySelector('#info-number').value = collectorNumber;
         card.infoNumber = collectorNumber;
-		
-		//load values from card into html inputs
-		document.querySelector('#info-number').value = card.infoNumber;
-		document.querySelector('#info-rarity').value = card.infoRarity;
-		document.querySelector('#info-set').value = card.infoSet;
-		document.querySelector('#info-language').value = card.infoLanguage;
-		document.querySelector('#info-note').value = card.infoNote;
-		document.querySelector('#info-year').value = card.infoYear || date.getFullYear();
-		artistEdited(card.infoArtist);
-		document.querySelector('#text-editor').value = card.text[Object.keys(card.text)[selectedTextIndex]].text;
-		document.querySelector('#text-editor-font-size').value = card.text[Object.keys(card.text)[selectedTextIndex]].fontSize || 0;
-		loadTextOptions(card.text);
-		document.querySelector('#art-x').value = scaleX(card.artX) - scaleWidth(card.marginX);
-		document.querySelector('#art-y').value = scaleY(card.artY) - scaleHeight(card.marginY);
-		document.querySelector('#art-zoom').value = card.artZoom * 100;
-		document.querySelector('#art-rotate').value = card.artRotate || 0;
-		uploadArt(card.artSource);
-		document.querySelector('#setSymbol-x').value = scaleX(card.setSymbolX) - scaleWidth(card.marginX);
-		document.querySelector('#setSymbol-y').value = scaleY(card.setSymbolY) - scaleHeight(card.marginY);
-		document.querySelector('#setSymbol-zoom').value = card.setSymbolZoom * 100;
-		uploadSetSymbol(card.setSymbolSource);
-		document.querySelector('#watermark-x').value = scaleX(card.watermarkX) - scaleWidth(card.marginX);
-		document.querySelector('#watermark-y').value = scaleY(card.watermarkY) - scaleHeight(card.marginY);
-		document.querySelector('#watermark-zoom').value = card.watermarkZoom * 100;
-		// document.querySelector('#watermark-left').value = card.watermarkLeft;
-		// document.querySelector('#watermark-right').value = card.watermarkRight;
-		document.querySelector('#watermark-opacity').value = card.watermarkOpacity * 100;
-		document.getElementById("rounded-corners").checked = !card.noCorners;
-		uploadWatermark(card.watermarkSource);
-		document.querySelector('#serial-number').value = card.serialNumber;
-		document.querySelector('#serial-total').value = card.serialTotal;
-		document.querySelector('#serial-x').value = card.serialX;
-		document.querySelector('#serial-y').value = card.serialY;
-		document.querySelector('#serial-scale').value = card.serialScale;
-		serialInfoEdited();
+        
+        //load values from card into html inputs
+        document.querySelector('#info-number').value = card.infoNumber;
+        document.querySelector('#info-rarity').value = card.infoRarity;
+        document.querySelector('#info-set').value = card.infoSet;
+        document.querySelector('#info-language').value = card.infoLanguage;
+        document.querySelector('#info-note').value = card.infoNote;
+        document.querySelector('#info-year').value = card.infoYear || date.getFullYear();
+        artistEdited(card.infoArtist);
+        document.querySelector('#text-editor').value = card.text[Object.keys(card.text)[selectedTextIndex]].text;
+        document.querySelector('#text-editor-font-size').value = card.text[Object.keys(card.text)[selectedTextIndex]].fontSize || 0;
+        loadTextOptions(card.text);
+        document.querySelector('#art-x').value = scaleX(card.artX) - scaleWidth(card.marginX);
+        document.querySelector('#art-y').value = scaleY(card.artY) - scaleHeight(card.marginY);
+        document.querySelector('#art-zoom').value = card.artZoom * 100;
+        document.querySelector('#art-rotate').value = card.artRotate || 0;
+        uploadArt(card.artSource);
+        document.querySelector('#setSymbol-x').value = scaleX(card.setSymbolX) - scaleWidth(card.marginX);
+        document.querySelector('#setSymbol-y').value = scaleY(card.setSymbolY) - scaleHeight(card.marginY);
+        document.querySelector('#setSymbol-zoom').value = card.setSymbolZoom * 100;
+        uploadSetSymbol(card.setSymbolSource);
+        document.querySelector('#watermark-x').value = scaleX(card.watermarkX) - scaleWidth(card.marginX);
+        document.querySelector('#watermark-y').value = scaleY(card.watermarkY) - scaleHeight(card.marginY);
+        document.querySelector('#watermark-zoom').value = card.watermarkZoom * 100;
+        document.querySelector('#watermark-opacity').value = card.watermarkOpacity * 100;
+        document.getElementById("rounded-corners").checked = !card.noCorners;
+        uploadWatermark(card.watermarkSource);
+        document.querySelector('#serial-number').value = card.serialNumber;
+        document.querySelector('#serial-total').value = card.serialTotal;
+        document.querySelector('#serial-x').value = card.serialX;
+        document.querySelector('#serial-y').value = card.serialY;
+        document.querySelector('#serial-scale').value = card.serialScale;
+        serialInfoEdited();
 
-		card.frames.reverse();
-		await card.frames.forEach(item => addFrame([], item));
-		card.frames.reverse();
-		if (card.onload) {
-			await loadScript(card.onload);
-		}
-		card.manaSymbols.forEach(item => loadScript(item));
-		//canvases
-		var canvasesResized = false;
-		canvasList.forEach(name => {
-			if (window[name + 'Canvas'].width != card.width * (1 + card.marginX) || window[name + 'Canvas'].height != card.height * (1 + card.marginY)) {
-				sizeCanvas(name);
-				canvasesResized = true;
-			}
-		});
-		if (canvasesResized) {
-			drawTextBuffer();
-			drawFrames();
-			bottomInfoEdited();
-			watermarkEdited();
-		}
-
-		// Trigger the auto frame update
-        // autoFrame();
-
-        // Redraw the card
-        // drawCard();
-	} else if (!nonotify) {
-		notify(selectedCardKey + ' failed to load.', 5)
-	}
+        card.frames.reverse();
+        await card.frames.forEach(item => addFrame([], item));
+        card.frames.reverse();
+        if (card.onload) {
+            await loadScript(card.onload);
+        }
+        card.manaSymbols.forEach(item => loadScript(item));
+        //canvases
+        var canvasesResized = false;
+        canvasList.forEach(name => {
+            if (window[name + 'Canvas'].width != card.width * (1 + card.marginX) || window[name + 'Canvas'].height != card.height * (1 + card.marginY)) {
+                sizeCanvas(name);
+                canvasesResized = true;
+            }
+        });
+        if (!silent) {
+            if (canvasesResized) {
+                drawTextBuffer();
+                drawFrames();
+                bottomInfoEdited();
+                watermarkEdited();
+            }
+        }
+    } else if (!nonotify && !silent) {
+        notify(selectedCardKey + ' failed to load.', 5)
+    }
 }
 function deleteCard(keyToDelete) {
     if (keyToDelete) {
@@ -5556,7 +5554,90 @@ saveCard = function(saveFromFile, customKey) {
 
 // Initial update of the Set Editor
 updateSetEditor(true);
+//FULL SCREEN VIEW
+function initializeFullScreenCards() {
+    const viewAllCardsButton = document.getElementById('view-all-cards');
+    const fullScreenCards = document.getElementById('full-screen-cards');
+    const closeFullScreenButton = document.getElementById('close-full-screen');
+    const cardGrid = document.getElementById('card-grid');
 
+    let abortController = null;
+
+    if (!viewAllCardsButton || !fullScreenCards || !closeFullScreenButton || !cardGrid) {
+        console.error("One or more required elements not found");
+        return;
+    }
+
+    viewAllCardsButton.addEventListener('click', openFullScreenCards);
+    closeFullScreenButton.addEventListener('click', closeFullScreenCards);
+
+    async function openFullScreenCards() {
+        fullScreenCards.style.display = 'block';
+        abortController = new AbortController();
+        try {
+            await renderAllCards(abortController.signal);
+        } catch (error) {
+            console.error("Error rendering cards:", error);
+        }
+    }
+
+    function closeFullScreenCards() {
+        if (abortController) {
+            abortController.abort();
+        }
+        fullScreenCards.style.display = 'none';
+    }
+
+    async function renderAllCards(signal) {
+        cardGrid.innerHTML = '';
+        const cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
+        cardKeys.sort(cardRaritySort);
+        
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        tempCanvas.width = 2010;
+        tempCanvas.height = 2814;
+
+        for (const cardKey of cardKeys) {
+            if (signal.aborted) return;
+
+            await loadCard(cardKey, true, true);
+            
+            try {
+                await drawPDFPage(null, [cardKey], tempCanvas, tempCtx, false, signal);
+            } catch (error) {
+                console.error("Error drawing card:", cardKey, error);
+                continue;
+            }
+
+            const img = document.createElement('img');
+            img.src = tempCanvas.toDataURL('image/jpeg');
+            img.alt = cardKey;
+            img.className = 'card-preview';
+            img.addEventListener('click', () => loadCardAndClose(cardKey));
+            
+            cardGrid.appendChild(img);
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    async function loadCardAndClose(key) {
+        if (abortController) {
+            abortController.abort();
+        }
+        closeFullScreenCards();
+        await loadCard(key);
+        drawCard();
+    }
+}
+
+// Run the initialization function
+initializeFullScreenCards();
+
+// Also run it when the DOM is fully loaded, just in case
+document.addEventListener('DOMContentLoaded', initializeFullScreenCards);
 //UTILITY
 // Helper function to extract card data
 function extractCardData(cardData, options) {

@@ -1029,3 +1029,49 @@ textarea.input {
         grid-column: 1;
     }
 }
+
+.full-screen-cards {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background-color: rgba(0, 0, 0, 0.9);
+	z-index: 1000;
+	overflow-y: auto;
+  }
+  
+  .full-screen-cards-content {
+	padding: 20px;
+  }
+  
+  #close-full-screen {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	z-index: 1001;
+  }
+  
+  #card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 20px;
+	padding: 20px;
+  }
+  
+  .card-preview {
+	width: 100%;
+	aspect-ratio: 5 / 7;
+	object-fit: cover;
+	cursor: pointer;
+	transition: transform 0.3s ease;
+  }
+  
+  .card-preview:hover {
+	transform: scale(1.05);
+  }
+  
+  #view-all-cards {
+	margin-bottom: 10px;
+  }

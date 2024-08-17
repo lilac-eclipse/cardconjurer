@@ -5472,11 +5472,11 @@ function convertManaCost(manaCost) {
 
 function cardRaritySort(a, b) {
     // Define the order of rarities and colors
-    const rarityOrder = { C: 0, U: 1, R: 2, M: 3 };
-    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6 };
+    const rarityOrder = { C: 0, U: 1, R: 2, M: 3 , I: 4};
+    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6, L: 7 };
 
     // Extract rarity and color from the card keys
-    const [, aRarity, aColor] = a.match(/([CURM])([WUBRGZA])(\d+)/) || [null, 'Z', 'Z', '0'];
+    const [, aRarity, aColor] = a.match(/([CURMI])([WUBRGZAL])(\d+)/) || [null, 'Z', 'Z', '0'];
     const [, bRarity, bColor] = b.match(/([CURM])([WUBRGZA])(\d+)/) || [null, 'Z', 'Z', '0'];
 
     // Compare rarities

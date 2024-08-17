@@ -1062,8 +1062,9 @@ textarea.input {
   
   .card-preview {
 	width: 100%;
-	aspect-ratio: 5 / 7;
-	object-fit: cover;
+	height: auto;
+	aspect-ratio: 2010 / 2814;
+	object-fit: contain;
 	cursor: pointer;
 	transition: transform 0.3s ease;
   }

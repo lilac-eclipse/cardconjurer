@@ -4544,7 +4544,10 @@ function setDefaultCollector() {
 	localStorage.setItem('defaultCollector', JSON.stringify(defaultCollector));
 }
 //DRAWING THE CARD (putting it all together)
-function drawCard() {
+function drawCard(shouldCache = true) {
+
+	if (blockCardDraw) { return; }
+
 	// reset
 	cardContext.globalCompositeOperation = 'source-over';
 	cardContext.clearRect(0, 0, cardCanvas.width, cardCanvas.height);
@@ -4655,6 +4658,21 @@ function drawCard() {
 	// show preview
 	previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
 	previewContext.drawImage(cardCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
+
+	// Cache the card image after drawing
+	if (shouldCache) {
+		cacheCardImage();
+	}
+}
+const cardImageCache = new Map();
+let blockCardDraw = false;
+function cacheCardImage() {
+	const setCode = document.querySelector('#info-set').value;
+    const language = document.querySelector('#info-language').value;
+    const cardKey = `${setCode} ${language}`;
+	const imageDataURL = cardCanvas.toDataURL('image/jpeg');
+	cardImageCache.set(cardKey, imageDataURL);
+	console.log("cache!")
 }
 //DOWNLOADING
 function downloadCard(alt = false, jpeg = false) {
@@ -4806,7 +4824,7 @@ async function downloadAllCardsPDF(isPrototype = false) {
 			pageNumber++;
 		}
 	}
-	doc.deletePage(doc.internal.getNumberOfPages());
+	doc.deletePage(doc.internal.getNumberOfPages()); // remove blank last page
 
     doc.save('all_cards.pdf');
 }
@@ -4824,14 +4842,15 @@ async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype, signal)
     for (const [i, cardKey] of chunk.entries()) {
         if (signal && signal.aborted) return;
 
+		blockCardDraw = true;
         await loadCard(cardKey);
 
         if (isPrototype) {
             applyPrototypeChanges(cardKey);
             await loadPrototypeImage();
         }
-
-        drawCard();
+		blockCardDraw = false;
+        drawCard(shouldCache=false);
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const x = pageMarginX + (i % 3) * cw + Math.floor(cardMarginX / 2) + cardPaddingX;
@@ -5561,8 +5580,6 @@ function initializeFullScreenCards() {
     const closeFullScreenButton = document.getElementById('close-full-screen');
     const cardGrid = document.getElementById('card-grid');
 
-    let abortController = null;
-
     if (!viewAllCardsButton || !fullScreenCards || !closeFullScreenButton || !cardGrid) {
         console.error("One or more required elements not found");
         return;
@@ -5571,62 +5588,57 @@ function initializeFullScreenCards() {
     viewAllCardsButton.addEventListener('click', openFullScreenCards);
     closeFullScreenButton.addEventListener('click', closeFullScreenCards);
 
-    async function openFullScreenCards() {
+    function openFullScreenCards() {
         fullScreenCards.style.display = 'block';
-        abortController = new AbortController();
-        try {
-            await renderAllCards(abortController.signal);
-        } catch (error) {
-            console.error("Error rendering cards:", error);
-        }
+        renderAllCards();
     }
 
     function closeFullScreenCards() {
-        if (abortController) {
-            abortController.abort();
-        }
         fullScreenCards.style.display = 'none';
     }
 
-    async function renderAllCards(signal) {
+    async function renderAllCards() {
         cardGrid.innerHTML = '';
         const cardKeys = JSON.parse(localStorage.getItem('cardKeys')) || [];
         cardKeys.sort(cardRaritySort);
-        
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
 
-        tempCanvas.width = 2010;
-        tempCanvas.height = 2814;
+		// Filter out unnamed and art cards
+		const namedCards = cardKeys.filter(key => {
+			const cardData = JSON.parse(localStorage.getItem(key));
+			return cardData && cardData.text && cardData.text.title && cardData.text.title.text !== ""
+		});
 
-        for (const cardKey of cardKeys) {
-            if (signal.aborted) return;
-
-            await loadCard(cardKey, true, true);
-            
-            try {
-                await drawPDFPage(null, [cardKey], tempCanvas, tempCtx, false, signal);
-            } catch (error) {
-                console.error("Error drawing card:", cardKey, error);
-                continue;
+        for (const cardKey of namedCards) {
+            const cachedImage = cardImageCache.get(cardKey);
+            if (cachedImage) {
+                const img = document.createElement('img');
+                img.src = cachedImage;
+                img.alt = cardKey;
+                img.className = 'card-preview';
+                img.addEventListener('click', () => loadCardAndClose(cardKey));
+                cardGrid.appendChild(img);
+            } else {
+				blockCardDraw = true;
+                await loadCard(cardKey, true, true);
+				blockCardDraw = false;
+                drawCard();
+				await new Promise(resolve => setTimeout(resolve, 500));
+                const newCachedImage = cardImageCache.get(cardKey);
+                if (newCachedImage) {
+                    const img = document.createElement('img');
+                    img.src = newCachedImage;
+                    img.alt = cardKey;
+                    img.className = 'card-preview';
+                    img.addEventListener('click', () => loadCardAndClose(cardKey));
+                    cardGrid.appendChild(img);
+                }
             }
-
-            const img = document.createElement('img');
-            img.src = tempCanvas.toDataURL('image/jpeg');
-            img.alt = cardKey;
-            img.className = 'card-preview';
-            img.addEventListener('click', () => loadCardAndClose(cardKey));
-            
-            cardGrid.appendChild(img);
 
             await new Promise(resolve => setTimeout(resolve, 0));
         }
     }
 
     async function loadCardAndClose(key) {
-        if (abortController) {
-            abortController.abort();
-        }
         closeFullScreenCards();
         await loadCard(key);
         drawCard();

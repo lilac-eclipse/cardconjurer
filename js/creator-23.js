@@ -4544,8 +4544,7 @@ function setDefaultCollector() {
 	localStorage.setItem('defaultCollector', JSON.stringify(defaultCollector));
 }
 //DRAWING THE CARD (putting it all together)
-function drawCard(shouldCache = true) {
-
+function drawCard() {
 	if (blockCardDraw) { return; }
 
 	// reset
@@ -4660,19 +4659,19 @@ function drawCard(shouldCache = true) {
 	previewContext.drawImage(cardCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
 
 	// Cache the card image after drawing
-	if (shouldCache) {
-		cacheCardImage();
-	}
+	cacheCardImage();
 }
 const cardImageCache = new Map();
 let blockCardDraw = false;
+let blockCardCache = false;
 function cacheCardImage() {
+	if (blockCardCache) { return; }
 	const setCode = document.querySelector('#info-set').value;
     const language = document.querySelector('#info-language').value;
     const cardKey = `${setCode} ${language}`;
 	const imageDataURL = cardCanvas.toDataURL('image/jpeg');
 	cardImageCache.set(cardKey, imageDataURL);
-	console.log("cache!")
+	// console.log("cache!")
 }
 //DOWNLOADING
 function downloadCard(alt = false, jpeg = false) {
@@ -4768,6 +4767,7 @@ var cuttingGuides = new Image();
 cuttingGuides.src = 'cuttingGuides.svg';
 
 async function downloadAllCardsPDF(isPrototype = false) {
+	blockCardCache = true;
     const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
     if (!cardKeys || cardKeys.length === 0) {
         notify('No saved cards found.', 5);
@@ -4827,6 +4827,7 @@ async function downloadAllCardsPDF(isPrototype = false) {
 	doc.deletePage(doc.internal.getNumberOfPages()); // remove blank last page
 
     doc.save('all_cards.pdf');
+	blockCardCache = false;
 }
 
 async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype, signal) {
@@ -4850,8 +4851,9 @@ async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype, signal)
             await loadPrototypeImage();
         }
 		blockCardDraw = false;
-        drawCard(shouldCache=false);
+        drawCard();
         await new Promise(resolve => setTimeout(resolve, 500));
+		blockCardDraw = true;
 
         const x = pageMarginX + (i % 3) * cw + Math.floor(cardMarginX / 2) + cardPaddingX;
         const y = pageMarginY + Math.floor(i / 3) * ch + Math.floor(cardMarginY / 2) + cardPaddingY;
@@ -4869,6 +4871,7 @@ async function drawPDFPage(doc, chunk, tempCanvas, tempCtx, isPrototype, signal)
         if (isPrototype) {
             await loadCard(cardKey); // Revert changes
         }
+		blockCardDraw = false;
     }
 }
 

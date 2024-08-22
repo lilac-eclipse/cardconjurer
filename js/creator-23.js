@@ -5301,12 +5301,19 @@ async function loadCard(selectedCardKey, nonotify = false, silent = false) {
     card = JSON.parse(localStorage.getItem(selectedCardKey));
     //if the card was loaded properly...
     if (card) {
-        // Assign collector number
-        const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
-        cardKeys.sort(collectorSort);
-        const totalCards = cardKeys.length;
-        const cardIndex = cardKeys.indexOf(selectedCardKey);
-        const collectorNumber = `${String(cardIndex + 1).padStart(4, '0')}/${String(totalCards).padStart(4, '0')}`;
+        // Assign collector number, skipping art cards
+		const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
+		const nonArtCardKeys = cardKeys.filter(key => key.charAt(4) !== 'A');
+		nonArtCardKeys.sort(collectorSort);
+		const totalCards = nonArtCardKeys.length;
+		const cardIndex = nonArtCardKeys.indexOf(selectedCardKey);
+
+		// Generate the collector number string
+		const collectorNumber = cardIndex !== -1 
+			? `${String(cardIndex + 1).padStart(4, '0')}/${String(totalCards).padStart(4, '0')}`
+			: 'Art Card'; // Handle case where selectedCardKey is not in the non-art list
+
+		console.log(collectorNumber)
 
         card.infoNumber = collectorNumber;
         

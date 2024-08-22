@@ -5409,17 +5409,54 @@ function uploadSavedCards(event) {
 	}
 	reader.readAsText(event.target.files[0]);
 }
+function cardRaritySort(a, b) {
+    // Define the order of rarities and colors
+	// common, uncommon, rare, mythic rare, basic land, token, art
+    const rarityOrder = { C: 0, U: 1, R: 2, M: 3 , L: 4, T: 5, A: 6};
+	// white, blue, black, red, green, multicolor, split cards, artifact, land, misc
+    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, X: 6, A: 7, L: 8 , M: 9};
+
+    // Extract rarity and color from the card keys
+    const [, aRarity, aColor] = a.match(/([CURMLTA])([WUBRGZXALM])(\d+)/) || [null, 'Z', 'Z', '0'];
+    const [, bRarity, bColor] = b.match(/([CURMLTA])([WUBRGZXALM])(\d+)/) || [null, 'Z', 'Z', '0'];
+
+    // Compare rarities
+    if (rarityOrder[aRarity] !== rarityOrder[bRarity]) {
+        return rarityOrder[aRarity] - rarityOrder[bRarity];
+    }
+
+    // If rarities are the same, compare colors
+    if (colorOrder[aColor] !== colorOrder[bColor]) {
+        return colorOrder[aColor] - colorOrder[bColor];
+    }
+
+    // If colors are the same, compare numbers
+    const aNumber = parseInt(a.match(/\d+/)[0]);
+    const bNumber = parseInt(b.match(/\d+/)[0]);
+    return aNumber - bNumber;
+}
 function collectorSort(a, b) {
     const cardA = JSON.parse(localStorage.getItem(a));
     const cardB = JSON.parse(localStorage.getItem(b));
 
-    // Sort by language digit 2 (W, U, B, R, G, Z, A)
-    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6 };
+    // Sort by language digit 2 (W, U, B, R, G, Z, X, A, L, M)
+    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, X: 6, A: 7, L: 8, M: 9 };
     const colorA = cardA.infoLanguage ? cardA.infoLanguage[1] : 'Z';
     const colorB = cardB.infoLanguage ? cardB.infoLanguage[1] : 'Z';
 
     if (colorOrder[colorA] !== colorOrder[colorB]) {
         return colorOrder[colorA] - colorOrder[colorB];
+    }
+
+    // If both are 'M', sort by the first character (L, T, A) and then alphabetically
+    if (colorA === 'M' && colorB === 'M') {
+        const subOrder = { L: 0, T: 1, A: 2 };
+        const subColorA = cardA.infoLanguage ? cardA.infoLanguage[0] : 'Z';
+        const subColorB = cardB.infoLanguage ? cardB.infoLanguage[0] : 'Z';
+
+        if (subOrder[subColorA] !== subOrder[subColorB]) {
+            return subOrder[subColorA] - subOrder[subColorB];
+        }
     }
 
     // Sort alphabetically by name
@@ -5490,30 +5527,6 @@ function convertManaCost(manaCost) {
     });
 }
 
-function cardRaritySort(a, b) {
-    // Define the order of rarities and colors
-    const rarityOrder = { C: 0, U: 1, R: 2, M: 3 , I: 4};
-    const colorOrder = { W: 0, U: 1, B: 2, R: 3, G: 4, Z: 5, A: 6, L: 7 };
-
-    // Extract rarity and color from the card keys
-    const [, aRarity, aColor] = a.match(/([CURMI])([WUBRGZAL])(\d+)/) || [null, 'Z', 'Z', '0'];
-    const [, bRarity, bColor] = b.match(/([CURM])([WUBRGZA])(\d+)/) || [null, 'Z', 'Z', '0'];
-
-    // Compare rarities
-    if (rarityOrder[aRarity] !== rarityOrder[bRarity]) {
-        return rarityOrder[aRarity] - rarityOrder[bRarity];
-    }
-
-    // If rarities are the same, compare colors
-    if (colorOrder[aColor] !== colorOrder[bColor]) {
-        return colorOrder[aColor] - colorOrder[bColor];
-    }
-
-    // If colors are the same, compare numbers
-    const aNumber = parseInt(a.match(/\d+/)[0]);
-    const bNumber = parseInt(b.match(/\d+/)[0]);
-    return aNumber - bNumber;
-}
 
 // Function to determine background color based on mana cost (dark mode version)
 function getColorFromManaCost(manaCost) {

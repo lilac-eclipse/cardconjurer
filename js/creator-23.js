@@ -4671,7 +4671,6 @@ function cacheCardImage() {
     const cardKey = `${setCode} ${language}`;
 	const imageDataURL = cardCanvas.toDataURL('image/jpeg');
 	cardImageCache.set(cardKey, imageDataURL);
-	// console.log("cache!")
 }
 //DOWNLOADING
 function downloadCard(alt = false, jpeg = false) {
@@ -5312,8 +5311,6 @@ async function loadCard(selectedCardKey, nonotify = false, silent = false) {
 		const collectorNumber = cardIndex !== -1 
 			? `${String(cardIndex + 1).padStart(4, '0')}/${String(totalCards).padStart(4, '0')}`
 			: 'Art Card'; // Handle case where selectedCardKey is not in the non-art list
-
-		console.log(collectorNumber)
 
         card.infoNumber = collectorNumber;
         

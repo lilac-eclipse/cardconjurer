@@ -5302,7 +5302,9 @@ async function loadCard(selectedCardKey, nonotify = false, silent = false) {
     if (card) {
         // Assign collector number, skipping art cards
 		const cardKeys = JSON.parse(localStorage.getItem('cardKeys'));
-		const nonArtCardKeys = cardKeys.filter(key => key.charAt(4) !== 'A');
+		const nonArtCardKeys = cardKeys.filter(key => 
+			key.charAt(4) !== 'A' && !key.startsWith('0')
+		);
 		nonArtCardKeys.sort(collectorSort);
 		const totalCards = nonArtCardKeys.length;
 		const cardIndex = nonArtCardKeys.indexOf(selectedCardKey);
@@ -5310,7 +5312,7 @@ async function loadCard(selectedCardKey, nonotify = false, silent = false) {
 		// Generate the collector number string
 		const collectorNumber = cardIndex !== -1 
 			? `${String(cardIndex + 1).padStart(4, '0')}/${String(totalCards).padStart(4, '0')}`
-			: 'Art Card'; // Handle case where selectedCardKey is not in the non-art list
+			: 'No Collector Number'; // Handle case where selectedCardKey is not in the non-art list
 
         card.infoNumber = collectorNumber;
         
@@ -5463,9 +5465,13 @@ function collectorSort(a, b) {
         }
     }
 
-    // Sort alphabetically by name
-    const nameA = cardA.text.title ? cardA.text.title.text.toLowerCase() : '';
-    const nameB = cardB.text.title ? cardB.text.title.text.toLowerCase() : '';
+	// Sort alphabetically by name, with empty names at the end
+    const nameA = cardA.text.title ? cardA.text.title.text.toLowerCase().trim() : '';
+    const nameB = cardB.text.title ? cardB.text.title.text.toLowerCase().trim() : '';
+
+    if (nameA === '' && nameB === '') return 0;
+    if (nameA === '') return 1;
+    if (nameB === '') return -1;
     return nameA.localeCompare(nameB);
 }
 // SET EDITOR VIEW

@@ -95,11 +95,13 @@
 		<!-- Regular stuff -->
 		<div class="creator-grid">
 			<div id="set-editor-container">
-				<h3 class="center margin-bottom">Set Editor</h3>
-				<button id="view-all-cards" class="input">View All Cards</button>
-				<button onclick="logAllCardsData()" style="font-size: 0.8em; padding: 5px 10px;">Log All</button>
-				<button onclick="logCurrentCardData()" style="font-size: 0.8em; padding: 5px 10px;">Log Current</button>
-				<button onclick="logFullCurrentCardData()" style="font-size: 0.8em; padding: 5px 10px;">Log Detailed</button>
+				<h3 class="center margin-bottom" id="set-editor-title">Set Editor</h3>
+				<div id="set-editor-buttons">
+					<button id="view-all-cards" class="input">View All Cards</button>
+					<button onclick="logAllCardsData()" style="font-size: 0.8em; padding: 5px 10px;">Log All</button>
+					<button onclick="logCurrentCardData()" style="font-size: 0.8em; padding: 5px 10px;">Log Current</button>
+					<button onclick="logFullCurrentCardData()" style="font-size: 0.8em; padding: 5px 10px;">Log Detailed</button>
+				  </div>
 				<table id="set-editor-table">
 					<thead>
 						<tr>

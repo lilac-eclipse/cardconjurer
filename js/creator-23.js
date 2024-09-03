@@ -5666,8 +5666,7 @@ function initializeFullScreenCards() {
 
     async function loadCardAndClose(key) {
         closeFullScreenCards();
-        await loadCard(key);
-        drawCard();
+		switchCard(key)
     }
 }
 
